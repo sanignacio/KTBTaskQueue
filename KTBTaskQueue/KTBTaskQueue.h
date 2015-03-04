@@ -116,6 +116,12 @@ typedef void(^KTBTaskQueueExecutionBlock)(KTBTask *task, KTBTaskCompletionBlock 
 - (BOOL)containsTask:(KTBTask *)task;
 
 /**
+ The number of tasks in the queue with the given name.
+ @param name Name of task to look for in the queue.
+ */
+- (NSUInteger)countOfTasksWithName:(NSString *)name;
+
+/**
  Deletes the queue from disk or memory and renders it invalid.
  @note Tasks enqueued after the queue has been deleted are never attempted. Tasks in the queue when it is deleted are lost.
  */

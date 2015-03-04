@@ -281,6 +281,10 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     return [self taskWithID:task.taskID] != nil;
 }
 
+- (NSUInteger)countOfTasksWithName:(NSString *)name {
+    return [self numberOfTasksWithName:name];
+}
+
 #pragma mark - Cleanup
 
 // This is typically only used for testing
@@ -419,6 +423,23 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     }];
     
     return task;
+}
+
+- (NSUInteger)numberOfTasksWithName:(NSString *)name {
+    __block NSUInteger count = 0;
+    
+    [self.databaseQueue inDatabase:^(FMDatabase *db) {
+        FMResultSet *resultSet = [db executeQuery:@"SELECT count(id) AS count FROM tasks WHERE name = ?", name];
+        [self checkErrorForDatabase:db stepDescription:@"getting number of tasks by name"];
+        
+        if ([resultSet next]) {
+            count = (NSUInteger)[resultSet intForColumn:@"count"];
+        }
+        
+        [resultSet close];
+    }];
+    
+    return count;
 }
 
 - (KTBTask *)taskWithID:(NSNumber *)taskID {
