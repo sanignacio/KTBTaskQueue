@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.license               = 'MIT'
   s.author                = { "Kevin Barrett" => "kevin@littlespindle.com" }
   s.social_media_url      = "https://twitter.com/kevboh"
-  s.source                = { :git => "https://github.com/kevboh/KTBTaskQueue.git", :tag => s.version.to_s }
+  s.source                = { :git => "https://github.com/sanignacio/KTBTaskQueue.git", :tag => s.version.to_s }
   s.platform              = :ios
   s.ios.deployment_target = '5.0'
   s.requires_arc          = true
