@@ -39,6 +39,8 @@ static dispatch_queue_t task_queue_processing_queue() {
     return ktb_task_queue_processing_queue;
 }
 
+static NSString * const kCommaSeparator = @",";
+
 const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
 
 @interface KTBTask (QueueAdditions)
@@ -165,6 +167,15 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     }
 }
 
+- (void)enqueueTasks:(NSArray *)tasks {
+    if (self.valid) {
+        for(KTBTask* tempTask in tasks) {
+            [self insertTask:tempTask];
+        }
+        [self dequeueNextTask];
+    }
+}
+
 #pragma mark - Running Tasks and Timing
 
 - (void)startPollingTimer {
@@ -265,6 +276,9 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
         [self.delegate taskQueue:self willAbandonTask:task];
     }
     [self deleteTask:task];
+    if ([self.delegate respondsToSelector:@selector(taskQueue:taskAbandoned:)]) {
+        [self.delegate taskQueue:self taskAbandoned:task];
+    }
 }
 
 #pragma mark - Querying the Queue
@@ -285,6 +299,12 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     return [self numberOfTasksWithName:name];
 }
 
+- (NSMutableArray *)removeTasksWithName:(NSString *)name {
+    NSMutableArray *tasks = [self getTasksWithName:name];
+    [self deleteTasks:tasks];
+    return tasks;
+}
+
 #pragma mark - Cleanup
 
 // This is typically only used for testing
@@ -292,7 +312,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     // Queue is no longer valid, stop accepting and processing tasks
     self.valid = NO;
     self.processing = NO;
-
+    
     // Stop timer and close database
     [self stopPollingTimer];
     [self.databaseQueue close];
@@ -379,6 +399,24 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     }];
 }
 
+- (void)deleteTasks:(NSArray *)tasks {
+    if(tasks.count > 0) {
+        NSMutableString* taskIdList = [NSMutableString string];
+        NSString* separator = @"";
+        
+        for(KTBTask *tempTask in tasks) {
+            [taskIdList appendString:separator];
+            [taskIdList appendString:tempTask.taskID.stringValue];
+            separator = kCommaSeparator;
+        }
+        
+        [self.databaseQueue inDatabase:^(FMDatabase *db) {
+            [db executeUpdate:@"DELETE FROM tasks WHERE id IN (?)", taskIdList];
+            [self checkErrorForDatabase:db stepDescription:@"deleting task from task queue"];
+        }];
+    }
+}
+
 - (void)setRetryDataForTask:(KTBTask *)task {
     NSDate *nextAvailableDate = [task nextAvailableDateWithBackoffInterval:self.backoffPollingInterval];
     if ([self.delegate respondsToSelector:@selector(taskQueue:willDelayRetryOfTask:untilDate:)]) {
@@ -440,6 +478,22 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     }];
     
     return count;
+}
+
+- (NSMutableArray *)getTasksWithName:(NSString *)name {
+    __block NSMutableArray *tasks = [NSMutableArray array];
+    [self.databaseQueue inDatabase:^(FMDatabase *db) {
+        FMResultSet *resultSet = [db executeQuery:@"SELECT * FROM tasks WHERE name = ?", name];
+        [self checkErrorForDatabase:db stepDescription:@"searching for a tasks by name"];
+        
+        while ([resultSet next]) {
+            [tasks addObject:[KTBTask taskWithResultSet:resultSet]];
+        }
+        
+        [resultSet close];
+    }];
+    
+    return tasks;
 }
 
 - (KTBTask *)taskWithID:(NSNumber *)taskID {

@@ -23,6 +23,7 @@ typedef void(^KTBTaskCompletionBlock)(KTBTaskStatus result);
  The delegate protocol for a KTBTaskQueue. Delegates must implement @c taskQueue:executeTask:completion: so that tasks are executed; other methods are optional.
  */
 @protocol KTBTaskQueueDelegate <NSObject>
+
 /**
  Called by the task queue on its delegate to execute a task. Whether the task completes successfully,
  fails and you want to retry, or fails and you want to give up, you must call the completion block
@@ -32,13 +33,23 @@ typedef void(^KTBTaskCompletionBlock)(KTBTaskStatus result);
  @param completion The completion block you must call when the task is finished or has failed.
  */
 - (void)taskQueue:(KTBTaskQueue *)queue executeTask:(KTBTask *)task completion:(KTBTaskCompletionBlock)completion;
+
 @optional
+
 /**
  Used to inform the delegate when a task has been abandoned.
  @param queue The queue making this delegate call.
  @param task A task model that encapsulates data about the thing to be abandoned.
  */
 - (void)taskQueue:(KTBTaskQueue *)queue willAbandonTask:(KTBTask *)task;
+
+/**
+ Used to inform the delegate when a task has been abandoned.
+ @param queue The queue making this delegate call.
+ @param task A task model that encapsulates data about the thing that was abandoned.
+ */
+- (void)taskQueue:(KTBTaskQueue *)queue taskAbandoned:(KTBTask *)task;
+
 /**
  Called by the task queue when a task will be retried in the future. The task will be scheduled
  to be available after the date returned by this method. The @c date argument is the default available date,
@@ -49,4 +60,5 @@ typedef void(^KTBTaskCompletionBlock)(KTBTaskStatus result);
  @note This method is only called when @c retryWithBackoff is set to @c YES on the task. Otherwise, the task is retried immediately.
  */
 - (NSDate *)taskQueue:(KTBTaskQueue *)queue willDelayRetryOfTask:(KTBTask *)task untilDate:(NSDate *)date;
+
 @end
