@@ -33,7 +33,7 @@ static dispatch_queue_t task_queue_processing_queue() {
     static dispatch_queue_t ktb_task_queue_processing_queue;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        ktb_task_queue_processing_queue = dispatch_queue_create("com.littlespindle.taskqueue.processing", DISPATCH_QUEUE_SERIAL);
+        ktb_task_queue_processing_queue = dispatch_queue_create("com.talech.register.taskqueue.processing", DISPATCH_QUEUE_SERIAL);
     });
     
     return ktb_task_queue_processing_queue;
