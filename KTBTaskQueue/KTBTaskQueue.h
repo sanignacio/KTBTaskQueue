@@ -96,6 +96,11 @@ typedef void(^KTBTaskQueueExecutionBlock)(KTBTask *task, KTBTaskCompletionBlock 
 - (instancetype)initWithPath:(NSString *)filePath delegate:(id<KTBTaskQueueDelegate>)delegate;
 
 /**
+ Attempt to dequeue the next eligible task
+ */
+- (void)startProcessing;
+
+/**
  A shorthand way of enqueuing tasks when all you need is a name and a dictionary. Task will (almost)
  immediately be attempted via delegate or execution block.
  @param name The name of the task to enqueue.
@@ -152,5 +157,26 @@ typedef void(^KTBTaskQueueExecutionBlock)(KTBTask *task, KTBTaskCompletionBlock 
  @note Tasks enqueued after the queue has been deleted are never attempted. Tasks in the queue when it is deleted are lost.
  */
 - (void)deleteQueue;
+
+/**
+ Returns an array of task names.
+ */
+- (NSArray *)taskNames;
+
+/**
+ Returns the next eligible task.
+ */
+- (KTBTask *)nextTask;
+
+/**
+ Returns an array of tasks with the given name.
+ @param name Name of the tasks to be returned.
+ */
+- (NSMutableArray *)getTasksWithName:(NSString *)name;
+
+/**
+ Returns an array of all tasks.
+ */
+- (NSMutableArray *)getTasks;
 
 @end

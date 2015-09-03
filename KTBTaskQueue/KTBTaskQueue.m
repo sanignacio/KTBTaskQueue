@@ -178,6 +178,10 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
 
 #pragma mark - Running Tasks and Timing
 
+- (void)startProcessing {
+    [self dequeueNextTask];
+}
+
 - (void)startPollingTimer {
     KTBDispatchSyncOnMainQueue(^{
         if (!self.pollingTimer && !self.suspended) {
@@ -222,7 +226,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
                     // Either there are more tasks and we should move to the next one,
                     // or we should go back to polling intermittently.
                     self.processing = NO;
-                    if ([self hasEligibleTasks]) {
+                    if(result == KTBTaskStatusSuccess) { // ([self hasEligibleTasks]) {
                         KTBDispatchAsyncOnMainQueue(^{
                             [self dequeueNextTask];
                         });
@@ -260,7 +264,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     }
     else if (result == KTBTaskStatusFailure) {
         if ([task canBeRetried]) {
-            [self setRetryDataForTask:task];
+            //[self setRetryDataForTask:task];
         }
         else {
             [self abandonTask:task];
@@ -447,6 +451,23 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     return count;
 }
 
+- (NSArray *)taskNames {
+    __block NSMutableArray* names = [NSMutableArray array];
+    
+    [self.databaseQueue inDatabase:^(FMDatabase *db) {
+        FMResultSet *resultSet = [db executeQuery:@"SELECT DISTINCT(name) AS name FROM tasks"];
+        [self checkErrorForDatabase:db stepDescription:@"getting task names"];
+        
+        while ([resultSet next]) {
+            [names addObject:[resultSet stringForColumn:@"name"]];
+        }
+        
+        [resultSet close];
+    }];
+    
+    return names;
+}
+
 - (KTBTask *)taskWithName:(NSString *)name {
     __block KTBTask *task = nil;
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
@@ -485,6 +506,22 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         FMResultSet *resultSet = [db executeQuery:@"SELECT * FROM tasks WHERE name = ?", name];
         [self checkErrorForDatabase:db stepDescription:@"searching for a tasks by name"];
+        
+        while ([resultSet next]) {
+            [tasks addObject:[KTBTask taskWithResultSet:resultSet]];
+        }
+        
+        [resultSet close];
+    }];
+    
+    return tasks;
+}
+
+- (NSMutableArray *)getTasks {
+    __block NSMutableArray *tasks = [NSMutableArray array];
+    [self.databaseQueue inDatabase:^(FMDatabase *db) {
+        FMResultSet *resultSet = [db executeQuery:@"SELECT * FROM tasks"];
+        [self checkErrorForDatabase:db stepDescription:@"searching for a tasks"];
         
         while ([resultSet next]) {
             [tasks addObject:[KTBTask taskWithResultSet:resultSet]];
