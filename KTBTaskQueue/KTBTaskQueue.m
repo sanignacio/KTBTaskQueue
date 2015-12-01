@@ -211,6 +211,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
 - (void)dequeueNextTask {
     dispatch_async(task_queue_processing_queue(), ^{
         if (self.valid && !self.suspended && !self.processing && [self hasEligibleTasks]) {
+            NSLog(@"processing next task");
             self.processing = YES;
             KTBTask *task = [self nextTask];
             if (task) {
@@ -249,9 +250,12 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
                 }
             }
             else {
+                NSLog(@"task nil");
                 // There are no available tasks. Go back to polling.
                 self.processing = NO;
                 [self startPollingTimer];
+                
+                [self.delegate databaseCorrupt];
             }
         }
     });
@@ -558,6 +562,11 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
         }
         
         NSLog(@"Error %@: %@", description, [db lastError]);
+        
+        if([db lastErrorCode] == SQLITE_CORRUPT)
+        {
+            [self.delegate databaseCorrupt];
+        }
     }
     
     return hadError;

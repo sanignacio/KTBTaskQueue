@@ -61,4 +61,9 @@ typedef void(^KTBTaskCompletionBlock)(KTBTaskStatus result);
  */
 - (NSDate *)taskQueue:(KTBTaskQueue *)queue willDelayRetryOfTask:(KTBTask *)task untilDate:(NSDate *)date;
 
+/**
+ Called when the database is corrupted
+ */
+- (void)databaseCorrupt;
+
 @end
