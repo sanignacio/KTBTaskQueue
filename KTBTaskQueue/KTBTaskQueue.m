@@ -209,9 +209,10 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
 }
 
 - (void)dequeueNextTask {
+    NSLog(@"checking for task");
     dispatch_async(task_queue_processing_queue(), ^{
         if (self.valid && !self.suspended && !self.processing && [self hasEligibleTasks]) {
-            NSLog(@"processing next task");
+            NSLog(@"processing task");
             self.processing = YES;
             KTBTask *task = [self nextTask];
             if (task) {
