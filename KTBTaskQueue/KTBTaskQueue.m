@@ -564,10 +564,8 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
         
         NSLog(@"Error %@: %@", description, [db lastError]);
         
-        if([db lastErrorCode] == SQLITE_CORRUPT)
-        {
-            [self.delegate databaseCorrupt];
-        }
+        int lastErrorCode = [db lastErrorCode];
+        [self.delegate databaseError:lastErrorCode];
     }
     
     return hadError;
