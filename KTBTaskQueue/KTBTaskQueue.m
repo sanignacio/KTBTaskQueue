@@ -10,6 +10,7 @@
 #import "KTBTask.h"
 #import <FMDB/FMDatabaseQueue.h>
 #import <FMDB/FMDatabase.h>
+#import <sqlite3.h>
 
 void KTBDispatchSyncOnMainQueue(void (^block)(void)) {
     if ([NSThread isMainThread]) {
