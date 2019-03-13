@@ -65,5 +65,6 @@ typedef void(^KTBTaskCompletionBlock)(KTBTaskStatus result);
  Called when a database error has occured
  */
 - (void)databaseError:(int)sqlLiteError;
+- (void)databaseError:(int)sqlLiteError isManual:(BOOL)isManual;
 
 @end

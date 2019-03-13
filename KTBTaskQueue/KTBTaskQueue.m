@@ -257,7 +257,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
                 self.processing = NO;
                 [self startPollingTimer];
                 
-                [self.delegate databaseError:SQLITE_CORRUPT];
+                [self.delegate databaseError:SQLITE_CORRUPT isManual:YES];
             }
         }
     });
