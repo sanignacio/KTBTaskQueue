@@ -591,6 +591,11 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     return description;
 }
 
+- (FMDatabaseQueue *)getDatabaseQueue
+{
+    return self.databaseQueue;
+}
+
 @end
 
 #pragma mark - KTBTask (QueueAdditions)
