@@ -180,6 +180,6 @@ typedef void(^KTBTaskQueueExecutionBlock)(KTBTask *task, KTBTaskCompletionBlock 
  */
 - (NSMutableArray *)getTasks;
 
-- (FMDatabaseQueue *)getDatabaseQueue;
+- (BOOL)hasDatabaseQueue;
 
 @end
