@@ -7,7 +7,6 @@
 //
 
 #import <Foundation/Foundation.h>
-#import <FMDB/FMDatabaseQueue.h>
 #import "KTBTaskQueueDelegate.h"
 #import "KTBTask.h"
 

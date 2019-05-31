@@ -8,6 +8,7 @@
 
 #import "KTBTaskQueue.h"
 #import "KTBTask.h"
+#import <FMDB/FMDatabaseQueue.h>
 #import <FMDB/FMDatabase.h>
 #import <sqlite3.h>
 
