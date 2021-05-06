@@ -371,7 +371,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
              @"VALUES (?, ?, ?, ?, ?, ?)",
              task.name, [task userInfoString], [task createdDateNumber], [task availableDateNumber], @(task.maxRetries), @(!strongSelf.prohibitsBackoff && task.retryWithBackoff)];
             if (![strongSelf checkErrorForDatabase:db stepDescription:@"inserting task into task queue" shouldDelegateError: NO]) {
-                [strongSelf.delegate KTBTaskQueueDebugLog:@"Success: inserting task %@ into task queue", task.name];
+                [strongSelf.delegate KTBTaskQueueDebugLog:[NSString stringWithFormat:@"Success: inserting task %@ into task queue", task.name]];
                 KTBDispatchAsyncOnMainQueue(^{
                     [self dequeueNextTask];
                 });
@@ -446,7 +446,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
                 needRetry = YES;
                 [strongSelf.delegate KTBTaskQueueDebugLog:[NSString stringWithFormat:@"deleteTask %@ lastErrorCode %i lastExtendedErrorCode %i", task.name, [db lastErrorCode], [db lastExtendedErrorCode]]];
             } else {
-                [strongSelf.delegate KTBTaskQueueDebugLog:@"Success: deleting task %@ from task queue", task.name];
+                [strongSelf.delegate KTBTaskQueueDebugLog:[NSString stringWithFormat:@"Success: deleting task %@ from task queue", task.name]];
             }
         } else {
             [strongSelf.delegate KTBTaskQueueDebugLog:@"deleteTask self nil"];
