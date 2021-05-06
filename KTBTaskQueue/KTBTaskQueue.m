@@ -360,7 +360,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
 
 - (void)insertTask:(KTBTask *)task {
     __weak typeof(self) weakSelf = self;
-    __block BOOL needRetry = YES;
+    __block BOOL needRetry = NO;
     __block int lastErrorCode = 0;
 
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
