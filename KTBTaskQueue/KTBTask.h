@@ -48,6 +48,8 @@ extern const NSInteger KTBTaskAlwaysRetry;
  @note This is equivalent to the number of times this task has been attempted + 1 for the first (untried) attempt.
  */
 @property (readonly, nonatomic, assign) NSInteger retryCount;
+@property (assign, atomic) NSInteger insertRetryCount;
+@property (assign, atomic) NSInteger deleteRetryCount;
 /**
  The maximum number of times this task will be retried. Defaults to 10.
  Setting this to @c KTBTaskAlwaysRetry will prevent the task from ever being abandoned due to high retry count. The task will be tried until it succeeds.
@@ -74,7 +76,7 @@ extern const NSInteger KTBTaskAlwaysRetry;
  @param maxRetries Number of times to retry this task. Passing in @c KTBTaskAlwaysRetry will prevent this task from abandoning due to high retry count.
  @param useBackoff Whether to retry the task with exponential backoff delay or immediately.
  */
-+ (instancetype)taskWithName:(NSString *)name userInfo:(NSDictionary *)userInfo availableDate:(NSDate *)availableDate maxRetries:(NSUInteger)maxRetries useBackoff:(BOOL)useBackoff;
++ (instancetype)taskWithName:(NSString *)name userInfo:(NSDictionary *)userInfo availableDate:(NSDate *)availableDate maxRetries:(NSInteger)maxRetries useBackoff:(BOOL)useBackoff;
 /**
  Changes the default value of @c retryWithBackoff on newly-created tasks. The default is @c YES.
  */
