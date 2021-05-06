@@ -91,10 +91,10 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
             }
         }
         
-        [self setupDatabaseQueueAtPath:filePath];
-        
         self.delegate = delegate;
-        
+
+        [self setupDatabaseQueueAtPath:filePath];
+                
         _suspended = NO;
         self.processing = NO;
         _prohibitsBackoff = NO;
