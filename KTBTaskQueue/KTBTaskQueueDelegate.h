@@ -66,6 +66,6 @@ typedef void(^KTBTaskCompletionBlock)(KTBTaskStatus result);
  */
 - (void)databaseError:(int)sqlLiteError;
 - (void)databaseError:(int)sqlLiteError isManual:(BOOL)isManual;
-- (void)taskQueueDebugLog:(NSString*)message;
+- (void)KTBTaskQueueDebugLog:(NSString*)message;
 
 @end

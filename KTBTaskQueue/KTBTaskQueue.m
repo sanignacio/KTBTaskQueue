@@ -352,7 +352,9 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
          @"    retryWithBackoff INTEGER NOT NULL DEFAULT 1"
          @");"
          ];
-        [self checkErrorForDatabase:db stepDescription:[NSString stringWithFormat:@"initializing task queue at %@", filePath]];
+        BOOL fileExist = [[NSFileManager defaultManager] fileExistsAtPath:filePath];
+        [self.delegate KTBTaskQueueDebugLog:[NSString stringWithFormat:@"initializing task queue at %@ File Exist %@", filePath, fileExist ? @"true" : @"false"]];
+        [self checkErrorForDatabase:db stepDescription:[NSString stringWithFormat:@"initializing task queue at %@", filePath] shouldDelegateError: YES];
     }];
 }
 
@@ -360,25 +362,26 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     __weak typeof(self) weakSelf = self;
     __block BOOL needRetry = YES;
     __block int lastErrorCode = 0;
-    
-    typeof(self) strongSelf = weakSelf;
+
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
+        typeof(self) strongSelf = weakSelf;
         if (strongSelf) {
             [db executeUpdate:
              @"INSERT INTO tasks (name, userInfo, createdDate, availableDate, maxRetries, retryWithBackoff)"
              @"VALUES (?, ?, ?, ?, ?, ?)",
              task.name, [task userInfoString], [task createdDateNumber], [task availableDateNumber], @(task.maxRetries), @(!strongSelf.prohibitsBackoff && task.retryWithBackoff)];
-            if(![strongSelf checkErrorForDatabase:db stepDescription:@"inserting task into task queue"]) {
+            if (![strongSelf checkErrorForDatabase:db stepDescription:@"inserting task into task queue" shouldDelegateError: NO]) {
+                [strongSelf.delegate KTBTaskQueueDebugLog:@"Success: inserting task %@ into task queue", task.name];
                 KTBDispatchAsyncOnMainQueue(^{
                     [self dequeueNextTask];
                 });
             } else {
                 lastErrorCode = [db lastErrorCode];
                 needRetry = YES;
-                [strongSelf.delegate taskQueueDebugLog:[NSString stringWithFormat:@"insertTask %@ lastErrorCode %i, lastExtendedErrorCode %i", task.name, lastErrorCode, [db lastExtendedErrorCode]]];
+                [strongSelf.delegate KTBTaskQueueDebugLog:[NSString stringWithFormat:@"insertTask %@ lastErrorCode %i, lastExtendedErrorCode %i", task.name, lastErrorCode, [db lastExtendedErrorCode]]];
             }
         } else {
-            [strongSelf.delegate taskQueueDebugLog:@"insertTask self nil"];
+            [strongSelf.delegate KTBTaskQueueDebugLog:@"insertTask self nil"];
         }
     }];
     if(needRetry) {
@@ -386,7 +389,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
         {
             [self.databaseQueue close];
             task.insertRetryCount++;
-            [self.delegate taskQueueDebugLog:[NSString stringWithFormat:@"insertTask retry count %ld",(long)task.insertRetryCount]];
+            [self.delegate KTBTaskQueueDebugLog:[NSString stringWithFormat:@"insertTask %@ retry count %ld", task.name, (long)task.insertRetryCount]];
             [self insertTask: task];
         } else {
             [self.delegate databaseError:lastErrorCode];
@@ -400,7 +403,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         NSNumber *availableNowDateNumber = @([[NSDate date] timeIntervalSince1970]);
         FMResultSet *resultSet = [db executeQuery:@"SELECT count(id) AS count FROM tasks WHERE availableDate <= ?", availableNowDateNumber];
-        [self checkErrorForDatabase:db stepDescription:@"checking for eligible tasks"];
+        [self checkErrorForDatabase:db stepDescription:@"checking for eligible tasks" shouldDelegateError: YES];
         
         if ([resultSet next]) {
             hasTasks = ([resultSet intForColumn:@"count"] > 0);
@@ -417,7 +420,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         NSNumber *availableNowDateNumber = @([[NSDate date] timeIntervalSince1970]);
         FMResultSet *resultSet = [db executeQuery:@"SELECT * FROM tasks WHERE availableDate <= ? ORDER BY availableDate ASC LIMIT 1", availableNowDateNumber];
-        [self checkErrorForDatabase:db stepDescription:@"selecting next eligible task"];
+        [self checkErrorForDatabase:db stepDescription:@"selecting next eligible task" shouldDelegateError: YES];
         
         if ([resultSet next]) {
             task = [KTBTask taskWithResultSet:resultSet];
@@ -438,24 +441,22 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
         [db executeUpdate:@"DELETE FROM tasks WHERE id = ?", task.taskID];
         typeof(self) strongSelf = weakSelf;
         if (strongSelf) {
-            if(![self checkErrorForDatabase:db stepDescription:@"deleting task from task queue"]) {
-                KTBDispatchAsyncOnMainQueue(^{
-                    [self dequeueNextTask];
-                });
-            } else {
+            if ([strongSelf checkErrorForDatabase:db stepDescription:@"deleting task from task queue" shouldDelegateError: NO]) {
                 lastErrorCode = [db lastErrorCode];
                 needRetry = YES;
-                [strongSelf.delegate taskQueueDebugLog:[NSString stringWithFormat:@"deleteTask %@ lastErrorCode %i lastExtendedErrorCode %i", task.name, [db lastErrorCode], [db lastExtendedErrorCode]]];
+                [strongSelf.delegate KTBTaskQueueDebugLog:[NSString stringWithFormat:@"deleteTask %@ lastErrorCode %i lastExtendedErrorCode %i", task.name, [db lastErrorCode], [db lastExtendedErrorCode]]];
+            } else {
+                [strongSelf.delegate KTBTaskQueueDebugLog:@"Success: deleting task %@ from task queue", task.name];
             }
         } else {
-            [strongSelf.delegate taskQueueDebugLog:@"deleteTask self nil"];
+            [strongSelf.delegate KTBTaskQueueDebugLog:@"deleteTask self nil"];
         }
     }];
-    if(needRetry) {
-        if(lastErrorCode == SQLITE_CANTOPEN && task.deleteRetryCount < 4) {
+    if (needRetry) {
+        if (lastErrorCode == SQLITE_CANTOPEN && task.deleteRetryCount < 4) {
             [self.databaseQueue close];
             task.deleteRetryCount++;
-            [self.delegate taskQueueDebugLog:[NSString stringWithFormat:@"deleteTask %@ retry count %ld",task.name, (long)task.deleteRetryCount]];
+            [self.delegate KTBTaskQueueDebugLog:[NSString stringWithFormat:@"deleteTask %@ retry count %ld", task.name, (long)task.deleteRetryCount]];
             [self deleteTask: task];
         } else {
             [self.delegate databaseError:lastErrorCode];
@@ -476,7 +477,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
         
         [self.databaseQueue inDatabase:^(FMDatabase *db) {
             [db executeUpdate:@"DELETE FROM tasks WHERE id IN (?)", taskIdList];
-            [self checkErrorForDatabase:db stepDescription:@"deleting task from task queue"];
+            [self checkErrorForDatabase:db stepDescription:@"deleting task from task queue" shouldDelegateError: YES];
         }];
     }
 }
@@ -490,7 +491,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         NSNumber *nextAvailableDateNumber = @([nextAvailableDate timeIntervalSince1970]);
         [db executeUpdate:@"UPDATE tasks SET retryCount = retryCount + 1, availableDate = ? WHERE id = ?", nextAvailableDateNumber, task.taskID];
-        [self checkErrorForDatabase:db stepDescription:@"setting retry data for task"];
+        [self checkErrorForDatabase:db stepDescription:@"setting retry data for task" shouldDelegateError: YES];
     }];
 }
 
@@ -499,7 +500,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         FMResultSet *resultSet = [db executeQuery:@"SELECT count(id) AS count FROM tasks"];
-        [self checkErrorForDatabase:db stepDescription:@"getting number of tasks"];
+        [self checkErrorForDatabase:db stepDescription:@"getting number of tasks" shouldDelegateError: YES];
         
         if ([resultSet next]) {
             count = (NSUInteger)[resultSet intForColumn:@"count"];
@@ -516,7 +517,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         FMResultSet *resultSet = [db executeQuery:@"SELECT DISTINCT(name) AS name FROM tasks"];
-        [self checkErrorForDatabase:db stepDescription:@"getting task names"];
+        [self checkErrorForDatabase:db stepDescription:@"getting task names" shouldDelegateError: YES];
         
         while ([resultSet next]) {
             [names addObject:[resultSet stringForColumn:@"name"]];
@@ -532,7 +533,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     __block KTBTask *task = nil;
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         FMResultSet *resultSet = [db executeQuery:@"SELECT * FROM tasks WHERE name = ? LIMIT 1", name];
-        [self checkErrorForDatabase:db stepDescription:@"searching for a task by name"];
+        [self checkErrorForDatabase:db stepDescription:@"searching for a task by name" shouldDelegateError: YES];
         
         if ([resultSet next]) {
             task = [KTBTask taskWithResultSet:resultSet];
@@ -549,7 +550,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         FMResultSet *resultSet = [db executeQuery:@"SELECT count(id) AS count FROM tasks WHERE name = ?", name];
-        [self checkErrorForDatabase:db stepDescription:@"getting number of tasks by name"];
+        [self checkErrorForDatabase:db stepDescription:@"getting number of tasks by name" shouldDelegateError: YES];
         
         if ([resultSet next]) {
             count = (NSUInteger)[resultSet intForColumn:@"count"];
@@ -565,7 +566,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     __block NSMutableArray *tasks = [NSMutableArray array];
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         FMResultSet *resultSet = [db executeQuery:@"SELECT * FROM tasks WHERE name = ?", name];
-        [self checkErrorForDatabase:db stepDescription:@"searching for a tasks by name"];
+        [self checkErrorForDatabase:db stepDescription:@"searching for a tasks by name" shouldDelegateError: YES];
         
         while ([resultSet next]) {
             [tasks addObject:[KTBTask taskWithResultSet:resultSet]];
@@ -581,7 +582,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     __block NSMutableArray *tasks = [NSMutableArray array];
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         FMResultSet *resultSet = [db executeQuery:@"SELECT * FROM tasks"];
-        [self checkErrorForDatabase:db stepDescription:@"searching for a tasks"];
+        [self checkErrorForDatabase:db stepDescription:@"searching for a tasks" shouldDelegateError: YES];
         
         while ([resultSet next]) {
             [tasks addObject:[KTBTask taskWithResultSet:resultSet]];
@@ -597,7 +598,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     __block KTBTask *task = nil;
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         FMResultSet *resultSet = [db executeQuery:@"SELECT * FROM tasks WHERE id = ? LIMIT 1", taskID];
-        [self checkErrorForDatabase:db stepDescription:@"searching for a task by ID"];
+        [self checkErrorForDatabase:db stepDescription:@"searching for a task by ID" shouldDelegateError: YES];
         
         if ([resultSet next]) {
             task = [KTBTask taskWithResultSet:resultSet];
@@ -609,7 +610,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     return task;
 }
 
-- (BOOL)checkErrorForDatabase:(FMDatabase *)db stepDescription:(NSString *)description {
+- (BOOL)checkErrorForDatabase:(FMDatabase *)db stepDescription:(NSString *)description shouldDelegateError:(BOOL)shouldDelegateError {
     BOOL hadError = [db hadError];
     
     if (hadError) {
@@ -620,6 +621,9 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
         NSLog(@"Error %@: %@", description, [db lastError]);
         
         int lastErrorCode = [db lastErrorCode];
+        if (shouldDelegateError) {
+            [self.delegate databaseError:lastErrorCode];
+        }
     }
     
     return hadError;
@@ -630,7 +634,7 @@ const NSTimeInterval KTBTaskQueueDefaultPollingInterval = 10;
     [description appendFormat:@"KTBTaskQueue (%d tasks):\n", [self numberOfTasks]];
     [self.databaseQueue inDatabase:^(FMDatabase *db) {
         FMResultSet *resultSet = [db executeQuery:@"SELECT * FROM tasks ORDER BY availableDate ASC"];
-        [self checkErrorForDatabase:db stepDescription:@"dumping task list"];
+        [self checkErrorForDatabase:db stepDescription:@"dumping task list" shouldDelegateError: YES];
         
         while ([resultSet next]) {
             KTBTask *task = [KTBTask taskWithResultSet:resultSet];
